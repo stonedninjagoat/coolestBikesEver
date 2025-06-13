@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Song Skeleton Generator</title>
+  <title>MIDI TimeSig and Motif CSV</title>
   <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.min.js"></script>
 </head>
 <body>
@@ -13,9 +13,9 @@
   <label>Min Significance: <input type="number" id="minSig" step="0.01" value="0.01"></label>
   <br><br>
   <input type="file" id="midiFile" accept=".mid,.midi">
-  <button onclick="analyzeTimeSignatures()">Process Rhythm CSV</button>
-  <button onclick="findTimeSigMotifs()">Find Rhythmic Motifs (n-grams)</button>
-  <button onclick="downloadTimeSigMotifsCSV()">Download Motifs CSV</button>
+  <button onclick="analyzeTimeSignatures()">Process TimeSigs CSV</button>
+  <button onclick="findTimeSigMotifs()">Find TimeSig Motifs (n-grams)</button>
+  <button onclick="downloadTimeSigMotifsCSV()">Download TimeSig Motifs CSV</button>
   <button onclick="downloadTimeSigSequenceCSV()">Download TimeSigs CSV</button>
 
   <pre id="output"></pre>
