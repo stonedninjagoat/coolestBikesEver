@@ -1,1 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Song Skeleton Generator</title>
+</head>
+<body>
+  <h2>Song Skeleton Generator</h2>
+  <input type="file" id="csvFile" accept=".csv" />
+  <button onclick="processBeatsCSV()">Analyze Beats</button>
 
+  <h3>Select columns to export:</h3>
+  <label><input type="checkbox" id="exportSections" checked /> Sections</label><br>
+  <label><input type="checkbox" id="exportPhrases" checked /> Phrases</label><br>
+  <label><input type="checkbox" id="exportPeriods" checked /> Periods</label><br>
+
+  <button onclick="exportAnalysisCSV()">Export Data</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    let beatsData = [];
+    let sectionLabels = [];
+    let phrases = [];
+    let periods = [];
+
+    function processBeatsCSV() {
+      const fileInput = document.getElementById('csvFile');
+      const output = document.getElementById('output');
+
+      if (!fileInput.files.length) {
+        alert('Please upload a CSV file.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const lines = e.target.result.trim().split('\n');
+        const headers = lines[0].split(',');
+        const beatIndex = headers.findIndex(h => h.trim().toLowerCase() === 'beats');
+
+        if (beatIndex === -1) {
+          alert('CSV must contain a "Beats" column.');
+          return;
+        }
+
+        beatsData = lines.slice(1).map(line => parseFloat(line.split(',')[beatIndex]));
+        analyzeStructure();
+        output.textContent = `Beats:\n${beatsData.join(', ')}\n\nSections:\n${sectionLabels.join(', ')}\n\nPhrases:\n${JSON.stringify(phrases)}\n\nPeriods:\n${JSON.stringify(periods)}`;
+      };
+      reader.readAsText(fileInput.files[0]);
+    }
+
+    function analyzeStructure() {
+      // Group into phrases (groups of 4 measures)
+      phrases = [];
+      for (let i = 0; i < beatsData.length; i += 4) {
+        phrases.push(beatsData.slice(i, i + 4));
+      }
+
+      // Build period pairs (adjacent phrases)
+      periods = [];
+      for (let i = 0; i < phrases.length - 1; i++) {
+        periods.push([phrases[i], phrases[i + 1]]);
+      }
+
+      // Label phrases as sections based on similarity
+      const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      sectionLabels = Array(phrases.length).fill('');
+      let sectionMap = [];
+
+      let labelIndex = 0;
+      for (let i = 0; i < phrases.length; i++) {
+        const existing = sectionMap.find(({ phrase }) => arraysEqual(phrase, phrases[i]));
+        if (existing) {
+          existing.count++;
+          sectionLabels[i] = `${existing.label}${existing.count}`;
+        } else {
+          const label = labels[labelIndex++ % labels.length];
+          sectionMap.push({ phrase: phrases[i], label, count: 1 });
+          sectionLabels[i] = `${label}1`;
+        }
+      }
+    }
+
+    function arraysEqual(a, b) {
+      if (a.length !== b.length) return false;
+      return a.every((v, i) => v === b[i]);
+    }
+
+    function exportAnalysisCSV() {
+      let rows = ["Measure,Beats"];
+      for (let i = 0; i < beatsData.length; i++) {
+        rows.push(`${i + 1},${beatsData[i]}`);
+      }
+
+      if (document.getElementById('exportSections').checked) {
+        rows.push("\nSection Labels");
+        sectionLabels.forEach((label, i) => rows.push(`${i * 4 + 1}-${i * 4 + 4},${label}`));
+      }
+
+      if (document.getElementById('exportPhrases').checked) {
+        rows.push("\nPhrases");
+        phrases.forEach((p, i) => rows.push(`Phrase ${i + 1},"${p.join(', ')}"`));
+      }
+
+      if (document.getElementById('exportPeriods').checked) {
+        rows.push("\nPeriods");
+        periods.forEach((pair, i) => rows.push(`Period ${i + 1},"${pair[0].join(', ')} | ${pair[1].join(', ')}"`));
+      }
+
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'song_skeleton_analysis.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
