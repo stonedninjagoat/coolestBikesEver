@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MIDI TimeSig and Motif CSV</title>
+  <title>MIDI to TimeSig and Motif CSV</title>
   <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.min.js"></script>
 </head>
 <body>
   <h2>Song Skeleton Generator</h2>
   <label>Min Motif Length: <input type="number" id="minLength" value="2"></label>
-  <label>Max Motif Length: <input type="number" id="maxLength" value="6"></label>
+  <label>Max Motif Length: <input type="number" id="maxLength" value="4"></label>
   <label>Min Frequency: <input type="number" id="minCount" value="2"></label>
-  <label>Min Significance: <input type="number" id="minSig" step="0.01" value="0.01"></label>
+  <label>Min Significance: <input type="number" id="minSig" step="0.01" value="0.05"></label>
   <br><br>
   <input type="file" id="midiFile" accept=".mid,.midi">
   <button onclick="analyzeTimeSignatures()">Process TimeSigs CSV</button>
