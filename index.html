@@ -2,117 +2,133 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Song Skeleton Generator</title>
+  <title>Rhythmic Motif Finder</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.min.js"></script>
 </head>
 <body>
-  <h2>Song Skeleton Generator</h2>
-  <input type="file" id="csvFile" accept=".csv" />
-  <button onclick="processBeatsCSV()">Analyze Time Signatures</button>
-
-  <h3>Select columns to export:</h3>
-  <label><input type="checkbox" id="exportSections" checked /> Sections</label><br>
-  <label><input type="checkbox" id="exportPhrases" checked /> Phrases</label><br>
-  <label><input type="checkbox" id="exportPeriods" checked /> Periods</label><br>
-
-  <button onclick="exportAnalysisCSV()">Export Data</button>
+  <h2>Rhythmic Motif Finder</h2>
+  <label>Min Motif Length: <input type="number" id="minLength" value="2"></label>
+  <label>Max Motif Length: <input type="number" id="maxLength" value="6"></label>
+  <label>Min Frequency: <input type="number" id="minCount" value="2"></label>
+  <label>Min Significance: <input type="number" id="minSig" step="0.01" value="0.01"></label>
+  <br><br>
+  <input type="file" id="csvFile" accept=".csv">
+  <input type="file" id="midiFile" accept=".mid,.midi">
+  <button onclick="processRhythmCSV()">Process Rhythm CSV</button>
+  <button onclick="findRhythmicMotifs()">Find Rhythmic Motifs (n-grams)</button>
+  <button onclick="generatePredictiveRhythm()">Generate Predictive Rhythm</button>
+  <button onclick="downloadMotifsCSV()">Download Motifs CSV</button>
+  <button onclick="downloadGeneratedCSV()">Download Generated Rhythm CSV</button>
+  <button onclick="analyzeTimeSignatures()">Analyze Time Signatures</button>
 
   <pre id="output"></pre>
 
   <script>
+    let rhythms = [];
+    let motifs = [];
+    let generated = [];
     let timeSigData = [];
-    let sectionLabels = [];
-    let phrases = [];
-    let periods = [];
 
-    function processBeatsCSV() {
-      const fileInput = document.getElementById('csvFile');
-      const output = document.getElementById('output');
-
-      if (!fileInput.files.length) {
-        alert('Please upload a CSV file.');
-        return;
-      }
+    function processRhythmCSV() {
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) return alert("No CSV uploaded");
 
       const reader = new FileReader();
       reader.onload = function (e) {
-        const lines = e.target.result.trim().split('\n');
-        const headers = lines[0].split(',');
-        const timeSigIndex = headers.findIndex(h => h.trim().toLowerCase() === 'timesig');
-
-        if (timeSigIndex === -1) {
-          alert('CSV must contain a "TimeSig" column.');
-          return;
-        }
-
-        timeSigData = lines.slice(1).map(line => line.split(',')[timeSigIndex].trim());
-        analyzeStructure();
-        output.textContent = `TimeSig Data:\n${timeSigData.join(', ')}\n\nSections:\n${sectionLabels.join(', ')}\n\nPhrases:\n${JSON.stringify(phrases)}\n\nPeriods:\n${JSON.stringify(periods)}`;
+        const lines = e.target.result.split(/\r?\n/);
+        const header = lines[0].split(',');
+        const beatsIndex = header.indexOf("Beats");
+        rhythms = lines.slice(1).map(l => parseFloat(l.split(',')[beatsIndex])).filter(x => !isNaN(x));
+        document.getElementById('output').textContent = "Loaded " + rhythms.length + " rhythms.";
       };
-      reader.readAsText(fileInput.files[0]);
+      reader.readAsText(file);
     }
 
-    function analyzeStructure() {
-      phrases = [];
-      for (let i = 0; i < timeSigData.length; i += 4) {
-        phrases.push(timeSigData.slice(i, i + 4));
-      }
+    function findRhythmicMotifs() {
+      const minLength = parseInt(document.getElementById('minLength').value);
+      const maxLength = parseInt(document.getElementById('maxLength').value);
+      const minCount = parseInt(document.getElementById('minCount').value);
+      const minSig = parseFloat(document.getElementById('minSig').value);
 
-      periods = [];
-      for (let i = 0; i < phrases.length - 1; i++) {
-        periods.push([phrases[i], phrases[i + 1]]);
-      }
+      let motifCounts = {};
 
-      const labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      sectionLabels = Array(phrases.length).fill('');
-      let sectionMap = [];
-
-      let labelIndex = 0;
-      for (let i = 0; i < phrases.length; i++) {
-        const existing = sectionMap.find(({ phrase }) => arraysEqual(phrase, phrases[i]));
-        if (existing) {
-          existing.count++;
-          sectionLabels[i] = `${existing.label}${existing.count}`;
-        } else {
-          const label = labels[labelIndex++ % labels.length];
-          sectionMap.push({ phrase: phrases[i], label, count: 1 });
-          sectionLabels[i] = `${label}1`;
+      for (let len = minLength; len <= maxLength; len++) {
+        for (let i = 0; i <= rhythms.length - len; i++) {
+          const motif = rhythms.slice(i, i + len).join('-');
+          motifCounts[motif] = (motifCounts[motif] || 0) + 1;
         }
       }
+
+      motifs = Object.entries(motifCounts)
+        .map(([motif, count]) => {
+          const length = motif.split('-').length;
+          const significance = count * length / rhythms.length;
+          return { motif, count, length, significance };
+        })
+        .filter(m => m.count >= minCount && m.significance >= minSig)
+        .sort((a, b) => b.significance - a.significance);
+
+      document.getElementById('output').textContent = `Motifs found: ${motifs.length}`;
     }
 
-    function arraysEqual(a, b) {
-      if (a.length !== b.length) return false;
-      return a.every((v, i) => v === b[i]);
+    function generatePredictiveRhythm() {
+      generated = [];
+      for (let i = 0; i < 32; i++) {
+        const rand = motifs[Math.floor(Math.random() * motifs.length)];
+        generated.push(...rand.motif.split('-').map(parseFloat));
+      }
+      document.getElementById('output').textContent += `\nGenerated ${generated.length} beats.`;
     }
 
-    function exportAnalysisCSV() {
-      let rows = ["Measure,TimeSig"];
-      for (let i = 0; i < timeSigData.length; i++) {
-        rows.push(`${i + 1},${timeSigData[i]}`);
-      }
-
-      if (document.getElementById('exportSections').checked) {
-        rows.push("\nSection Labels");
-        sectionLabels.forEach((label, i) => rows.push(`${i * 4 + 1}-${i * 4 + 4},${label}`));
-      }
-
-      if (document.getElementById('exportPhrases').checked) {
-        rows.push("\nPhrases");
-        phrases.forEach((p, i) => rows.push(`Phrase ${i + 1},"${p.join(', ')}"`));
-      }
-
-      if (document.getElementById('exportPeriods').checked) {
-        rows.push("\nPeriods");
-        periods.forEach((pair, i) => rows.push(`Period ${i + 1},"${pair[0].join(', ')} | ${pair[1].join(', ')}"`));
-      }
-
+    function downloadMotifsCSV() {
+      const fileInput = document.getElementById('csvFile');
+      const filename = fileInput.files[0]?.name.replace(/\.[^/.]+$/, '') || 'output';
+      const rows = ['motif,count,length,significance'];
+      motifs.forEach(m => rows.push(`${m.motif},${m.count},${m.length},${m.significance}`));
       const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'song_skeleton_analysis.csv';
+      a.href = URL.createObjectURL(blob);
+      a.download = `${filename}_motifs.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+    }
+
+    function downloadGeneratedCSV() {
+      const fileInput = document.getElementById('csvFile');
+      const filename = fileInput.files[0]?.name.replace(/\.[^/.]+$/, '') || 'output';
+      const rows = ['Beats'];
+      generated.forEach(b => rows.push(b));
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${filename}_generated.csv`;
+      a.click();
+    }
+
+    async function analyzeTimeSignatures() {
+      const fileInput = document.getElementById('midiFile');
+      if (!fileInput.files.length) {
+        alert('Please upload a MIDI file.');
+        return;
+      }
+
+      const arrayBuffer = await fileInput.files[0].arrayBuffer();
+      const midi = new Midi(arrayBuffer);
+
+      timeSigData = [];
+      midi.header.timeSignatures.forEach(event => {
+        const measure = Math.floor(event.ticks / midi.header.ppq / event.timeSignature[0]);
+        timeSigData.push({ measure: measure + 1, TimeSig: `${event.timeSignature[0]}/${event.timeSignature[1]}` });
+      });
+
+      const rows = ['Measure,TimeSig'];
+      timeSigData.forEach(d => rows.push(`${d.measure},${d.TimeSig}`));
+
+      const filename = fileInput.files[0]?.name.replace(/\.[^/.]+$/, '') || 'timesigs';
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${filename}_timeSigs.csv`;
+      a.click();
     }
   </script>
 </body>
