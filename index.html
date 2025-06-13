@@ -7,7 +7,7 @@
 <body>
   <h2>Song Skeleton Generator</h2>
   <input type="file" id="csvFile" accept=".csv" />
-  <button onclick="processBeatsCSV()">Analyze Beats</button>
+  <button onclick="processTimeSigCSV()">Analyze TimeSig</button>
 
   <h3>Select columns to export:</h3>
   <label><input type="checkbox" id="exportSections" checked /> Sections</label><br>
@@ -19,12 +19,12 @@
   <pre id="output"></pre>
 
   <script>
-    let beatsData = [];
+    let TimeSigData = [];
     let sectionLabels = [];
     let phrases = [];
     let periods = [];
 
-    function processBeatsCSV() {
+    function processTimeSigCSV() {
       const fileInput = document.getElementById('csvFile');
       const output = document.getElementById('output');
 
@@ -37,16 +37,16 @@
       reader.onload = function (e) {
         const lines = e.target.result.trim().split('\n');
         const headers = lines[0].split(',');
-        const beatIndex = headers.findIndex(h => h.trim().toLowerCase() === 'beats');
+        const beatIndex = headers.findIndex(h => h.trim().toLowerCase() === 'TimeSig');
 
         if (beatIndex === -1) {
-          alert('CSV must contain a "Beats" column.');
+          alert('CSV must contain a "TimeSig" column.');
           return;
         }
 
-        beatsData = lines.slice(1).map(line => parseFloat(line.split(',')[beatIndex]));
+        TimeSigData = lines.slice(1).map(line => parseFloat(line.split(',')[beatIndex]));
         analyzeStructure();
-        output.textContent = `Beats:\n${beatsData.join(', ')}\n\nSections:\n${sectionLabels.join(', ')}\n\nPhrases:\n${JSON.stringify(phrases)}\n\nPeriods:\n${JSON.stringify(periods)}`;
+        output.textContent = `TimeSig:\n${TimeSigData.join(', ')}\n\nSections:\n${sectionLabels.join(', ')}\n\nPhrases:\n${JSON.stringify(phrases)}\n\nPeriods:\n${JSON.stringify(periods)}`;
       };
       reader.readAsText(fileInput.files[0]);
     }
@@ -54,8 +54,8 @@
     function analyzeStructure() {
       // Group into phrases (groups of 4 measures)
       phrases = [];
-      for (let i = 0; i < beatsData.length; i += 4) {
-        phrases.push(beatsData.slice(i, i + 4));
+      for (let i = 0; i < TimeSigData.length; i += 4) {
+        phrases.push(TimeSigData.slice(i, i + 4));
       }
 
       // Build period pairs (adjacent phrases)
@@ -89,9 +89,9 @@
     }
 
     function exportAnalysisCSV() {
-      let rows = ["Measure,Beats"];
-      for (let i = 0; i < beatsData.length; i++) {
-        rows.push(`${i + 1},${beatsData[i]}`);
+      let rows = ["Measure,TimeSig"];
+      for (let i = 0; i < TimeSigData.length; i++) {
+        rows.push(`${i + 1},${TimeSigData[i]}`);
       }
 
       if (document.getElementById('exportSections').checked) {
