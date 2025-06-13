@@ -49,11 +49,12 @@
         const measureCount = Math.floor((endTick - startTick) / ticksPerMeasure);
 
         for (let j = 0; j < measureCount; j++) {
-          timeSigSequence.push(decimal);
+          timeSigSequence.push({ measure: timeSigSequence.length + 1, num, den, decimal });
         }
       }
 
-      document.getElementById('output').textContent = `Extracted ${timeSigSequence.length} measures with time signatures.\n` + timeSigSequence.join(', ');
+      const display = timeSigSequence.map(ts => ts.decimal).join(', ');
+      document.getElementById('output').textContent = `Extracted ${timeSigSequence.length} measures with time signatures.\n` + display;
     }
 
     function findTimeSigMotifs() {
@@ -63,10 +64,11 @@
       const minSig = parseFloat(document.getElementById('minSig').value);
 
       let motifCounts = {};
+      const decimals = timeSigSequence.map(ts => ts.decimal);
 
       for (let len = minLength; len <= maxLength; len++) {
-        for (let i = 0; i <= timeSigSequence.length - len; i++) {
-          const motif = timeSigSequence.slice(i, i + len).join('-');
+        for (let i = 0; i <= decimals.length - len; i++) {
+          const motif = decimals.slice(i, i + len).join('-');
           motifCounts[motif] = (motifCounts[motif] || 0) + 1;
         }
       }
@@ -74,13 +76,14 @@
       timeSigMotifs = Object.entries(motifCounts)
         .map(([motif, count]) => {
           const length = motif.split('-').length;
-          const significance = count * length / timeSigSequence.length;
+          const significance = count * length / decimals.length;
           return { motif, count, length, significance };
         })
         .filter(m => m.count >= minCount && m.significance >= minSig)
         .sort((a, b) => b.significance - a.significance);
 
-      document.getElementById('output').textContent += `\nMotifs found: ${timeSigMotifs.length}`;
+      const motifDisplay = timeSigMotifs.map(m => `Motif: ${m.motif}, Count: ${m.count}, Length: ${m.length}, Significance: ${m.significance.toFixed(4)}`).join('\n');
+      document.getElementById('output').textContent += `\n\nMotifs found: ${timeSigMotifs.length}\n${motifDisplay}`;
     }
 
     function downloadTimeSigMotifsCSV() {
@@ -91,15 +94,15 @@
       const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${filename}_timeSigs.csv`;
+      a.download = `${filename}_motifs.csv`;
       a.click();
     }
 
     function downloadTimeSigSequenceCSV() {
       const fileInput = document.getElementById('midiFile');
       const filename = fileInput.files[0]?.name.replace(/\.[^/.]+$/, '') || 'output';
-      const rows = ['Measure,TimeSig'];
-      timeSigSequence.forEach((ts, i) => rows.push(`${i + 1},${ts}`));
+      const rows = ['Measure,Num,Den,Decimal'];
+      timeSigSequence.forEach(ts => rows.push(`${ts.measure},${ts.num},${ts.den},${ts.decimal}`));
       const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
